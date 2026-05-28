@@ -1,0 +1,9 @@
+
+
+# 3. Specifically exclude the virtual environment even if it has .py files
+venv_evaluation_interpretability/
+.venv/
+
+*.png
+*.csv
+*.pyc
