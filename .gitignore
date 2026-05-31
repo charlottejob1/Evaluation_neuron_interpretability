@@ -1,9 +1,80 @@
+# =============================================================================
+# Evaluation_neuron_interpretability
+#
+# Version control: Python source (.py), notebooks (.ipynb), project config
+# (requirements*.txt, README.md), and small result summaries (metrics CSV/JSON,
+# aggregate plots). Exclude virtual environments, raw datasets, model weights,
+# and multi-MB sweep exports.
+#
+# GitHub hard limit: 100 MB per file. Sizes below are approximate (local disk).
+# =============================================================================
 
-
-# 3. Specifically exclude the virtual environment even if it has .py files
-venv_evaluation_interpretability/
+# --- Virtual environments (never commit) ---
 .venv/
+venv/
+venv_*/
+env/
+ENV/
+.conda/
+venv_evaluation_interpretability/
 
-*.png
-*.csv
-*.pyc
+# --- Python / Jupyter ---
+__pycache__/
+*.py[cod]
+*.pyo
+.ipynb_checkpoints/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+
+# --- Upstream VEGA (clone locally; see README) ---
+# Ignore all contents of vega/ except PLACEHOLDER (empty marker for GitHub).
+vega/*
+!vega/
+!vega/PLACEHOLDER
+
+# --- Raw datasets and numeric arrays (download or regenerate locally) ---
+# pbmc_data/ holds PBMC_8K_expression.h5 (~97 MB total)
+pbmc_data/
+# data_trial_v6/*.npy: dataset_X.npy, concept_activities.npy (~18 MB)
+data_trial_v6/*.npy
+*.h5
+*.h5ad
+*.npy
+*.npz
+
+# --- Model checkpoints (retrain with run_vega_fcn_sweep.py / train_vega_pbmc.py) ---
+# vega_fcn_sweep/fcn_*/vega2_*.pt (~23 MB each); plots_vega_simulation/vega2_beta.pt (~6 MB)
+*.pt
+*.pth
+*.pkl
+*.parquet
+
+# --- Run logs ---
+# e.g. vega_fcn_sweep/sweep.log (~450 KB)
+*.log
+
+# --- Large CSV exports: neuron-simulation probability sweeps (too big for GitHub) ---
+# plots_trial_v6_exp/probabilities_overlap_threshold_sweep.csv (~485 MB)
+# plots_trial_v6_uniform/probabilities_overlap_threshold_sweep.csv (~482 MB)
+plots_trial_v6_*/probabilities_overlap_threshold_sweep.csv
+# plots_trial_v6_*/probabilities_K_sweep.csv (~135 MB)
+plots_trial_v6_*/probabilities_K_sweep.csv
+# plots_trial_v6_*/probabilities_overlap_sweep.csv (~64 MB)
+plots_trial_v6_*/probabilities_overlap_sweep.csv
+# plots_trial_v6_*/probabilities_M_sweep.csv (~58 MB)
+plots_trial_v6_*/probabilities_M_sweep.csv
+# plots_trial_v6_*/probabilities_beta_sweep.csv (~36 MB)
+plots_trial_v6_*/probabilities_beta_sweep.csv
+# plots_trial_v6_*/overlap_regime_pairwise_values.csv (~5 MB)
+plots_trial_v6_*/overlap_regime_pairwise_values.csv
+
+# --- Small results kept (not ignored) ---
+# vega_fcn_sweep/aggregate/per_neuron_metrics.csv (~2 MB)
+# vega_fcn_sweep/fcn_*/interpretability_metrics.csv (~136 KB each)
+# vega_fcn_sweep/aggregate/*.png, fcn_*/04_reconstruction_test.png (~112-196 KB)
+# vega_fcn_sweep/fcn_*/metrics.json, training_info.txt
+# plots_dcorr_v2_*/distance_corr_*.csv (~170-280 KB)
+# plots_vega_simulation/metrics.json, *.png
+# data_trial_v6/concept_mapping.json

@@ -1,0 +1,37 @@
+{
+  "dataset": "PBMC_8K",
+  "fully_connected_neuron_fraction": 0,
+  "n_fully_connected_neurons_selected": 0,
+  "n_pathway_nodes": 674,
+  "n_genes": 2000,
+  "n_latent_nodes": 675,
+  "mask_density": 0.003946666666666667,
+  "n_epochs_trained": 203,
+  "train": {
+    "mse": 0.07454423606395721,
+    "pearson_overall": 0.9287059903144836,
+    "pearson_per_cell_mean": 0.8855973482131958,
+    "n_cells": 6875,
+    "n_genes": 2000
+  },
+  "test": {
+    "mse": 0.07724960148334503,
+    "pearson_overall": 0.8786394596099854,
+    "pearson_per_cell_mean": 0.8810791969299316,
+    "n_cells": 849,
+    "n_genes": 2000
+  },
+  "hyperparameters": {
+    "n_top_genes": 2000,
+    "train_size": 0.9,
+    "batch_size": 128,
+    "learning_rate": 0.00062187,
+    "n_epochs": 500,
+    "train_patience": 25,
+    "test_patience": 25,
+    "kld_weight": 0.000233864,
+    "dropout": 0.0452273,
+    "seed": 42,
+    "gmt_path": "vega/vega/data/reactomes.gmt"
+  }
+}

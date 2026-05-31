@@ -1,0 +1,70 @@
+distance_corr_simulation — run parameters
+============================================================
+Generated (UTC): 2026-05-31T15:41:55.072266+00:00
+Output directory: /Users/charlottejob/Code/Evaluation_neuron_interpretability/plots_dcorr_v2_exp
+
+Global defaults (fixed unless a study sweeps the dimension)
+----------------------------------------
+n_examples (N): 1000
+n_variables (M) when fixed: 2000
+n_concepts (K) when fixed: 300
+size_strategy: dirichlet
+size_min / size_max: 1 / 200
+max_concept_size: 200
+dirichlet_total_assignments_factor: 1.5
+variable_mean_strategy: mean
+alpha_mode: exponential
+alpha_exp_scale: 1.0
+seed: 12345
+
+Base overlap profile (beta / M / K sweeps)
+----------------------------------------
+  name: base
+  overlap_skew: 30.0
+  overlap_floor: 0.0
+  overlap_ceiling: 0.2
+  overlap_convergence_power: 0.4
+  overlap_reference_concepts: 300
+Study: studies_requested
+----------------------------------------
+  studies: beta, k, m, overlap
+  quick_mode: False
+
+Study: beta_sweep (01_distance_corr_by_beta.png)
+----------------------------------------
+  n_examples: 1000
+  M (fixed): 2000
+  K (fixed): 300
+  beta_values: 0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0
+  overlap_profile: {'name': 'base', 'overlap_skew': 30.0, 'overlap_floor': 0.0, 'overlap_ceiling': 0.2, 'overlap_convergence_power': 0.4, 'overlap_reference_concepts': 300}
+  output_csv: distance_corr_beta_sweep.csv
+
+Study: M_sweep (02_distance_corr_by_M.png)
+----------------------------------------
+  n_examples: 1000
+  M_values (swept): 500,1000,2000,4000
+  K (fixed): 300
+  beta_values: 0.0,0.3,0.6,0.9
+  overlap_profile: {'name': 'base', 'overlap_skew': 30.0, 'overlap_floor': 0.0, 'overlap_ceiling': 0.2, 'overlap_convergence_power': 0.4, 'overlap_reference_concepts': 300}
+  output_csv: distance_corr_M_sweep.csv
+
+Study: K_sweep (03_distance_corr_by_K.png)
+----------------------------------------
+  n_examples: 1000
+  M (fixed): 2000
+  K_values (swept): 50,100,300,500,700
+  beta_values: 0.0,0.3,0.6,0.9
+  overlap_profile: {'name': 'base', 'overlap_skew': 30.0, 'overlap_floor': 0.0, 'overlap_ceiling': 0.2, 'overlap_convergence_power': 0.4, 'overlap_reference_concepts': 300}
+  concept_sizes_per_K (density-preserving): {50: '6-1200', 100: '3-600', 300: '2-200', 500: '2-120', 700: '2-86'}
+  note: Concept size scales as ~M/K so packing density (and overlap) is comparable across K; avoids zero-overlap degeneracy at small K.
+  output_csv: distance_corr_K_sweep.csv
+
+Study: overlap_sweep (04_distance_corr_by_overlap.png)
+----------------------------------------
+  n_examples: 1000
+  M (fixed): 2000
+  K (fixed): 300
+  concept_sizes: 1-200 (dirichlet)
+  beta_values: 0.0,0.3,0.6,0.9
+  overlap_regimes: low_overlap(skew=5.0, ceiling=0.15, dirichlet=1.8); medium_overlap(skew=2.0, ceiling=0.5, dirichlet=1.8); high_overlap(skew=0.5, ceiling=1.0, dirichlet=4.5)
+  output_csv: distance_corr_overlap_sweep.csv

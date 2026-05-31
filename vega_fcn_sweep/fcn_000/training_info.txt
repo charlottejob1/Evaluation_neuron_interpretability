@@ -1,0 +1,81 @@
+VEGA2 PBMC training run
+============================================================
+Generated (UTC): 2026-05-31T19:02:09.229119+00:00
+Output directory: /Users/charlottejob/Code/Evaluation_neuron_interpretability/results_vega_pbmc_fcn0.00
+
+Data
+----------------------------------------
+data_dir: /Users/charlottejob/Code/Evaluation_neuron_interpretability/pbmc_data
+gmt_path: vega/vega/data/reactomes.gmt
+n_top_genes: 2000
+train cells: 6875 | val cells: 764 | test cells: 849
+
+Decoder mask (fully connected neuron selection)
+----------------------------------------
+fully_connected_neuron_fraction: 0.0000
+fully connected neurons selected: 0 / 674
+original mask density: 0.0039
+modified mask density: 0.0039
+
+Hyperparameters
+----------------------------------------
+n_top_genes: 2000
+train_size: 0.9
+batch_size: 128
+learning_rate: 0.00062187
+n_epochs: 500
+train_patience: 25
+test_patience: 25
+kld_weight: 0.000233864
+dropout: 0.0452273
+seed: 42
+gmt_path: vega/vega/data/reactomes.gmt
+
+Model architecture
+----------------------------------------
+VEGA2(
+  (encoder): Sequential(
+    (0): Linear(in_features=2000, out_features=800, bias=True)
+    (1): BatchNorm1d(800, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (2): ReLU()
+    (3): Dropout(p=0.0452273, inplace=False)
+    (4): Linear(in_features=800, out_features=800, bias=True)
+    (5): BatchNorm1d(800, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (6): ReLU()
+    (7): Dropout(p=0.0452273, inplace=False)
+  )
+  (mean): Sequential(
+    (0): Linear(in_features=800, out_features=675, bias=True)
+    (1): Dropout(p=0.0452273, inplace=False)
+  )
+  (logvar): Sequential(
+    (0): Linear(in_features=800, out_features=675, bias=True)
+    (1): Dropout(p=0.0452273, inplace=False)
+  )
+  (decoder): CustomizedLinear(input_features=675, output_features=2000, bias=True)
+)
+
+Total parameters: 6,028,150 | trainable: 4,678,150
+Decoder active connections (mask==1): 5,328 / 1,350,000 (0.4% of dense decoder)
+
+Training
+----------------------------------------
+epochs trained: 203
+final train loss: 158.4094
+final validation loss: 155.6158
+saved model: /Users/charlottejob/Code/Evaluation_neuron_interpretability/results_vega_pbmc_fcn0.00/vega2_pbmc_fcn0.00.pt
+
+Reconstruction metrics
+----------------------------------------
+TRAIN  MSE=0.074544 | Pearson overall=0.928706 | per-cell=0.885597
+TEST   MSE=0.077250 | Pearson overall=0.878639 | per-cell=0.881079
+
+Output files
+----------------------------------------
+01_fully_connected_neuron_mask.png
+02_training_loss.png
+03_reconstruction_train.png
+04_reconstruction_test.png
+metrics.json
+training_info.txt
+vega2_pbmc_fcn0.00.pt

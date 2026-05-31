@@ -1,0 +1,27 @@
+Overlap regime definitions used in test_metrics_simulation
+============================================================
+
+low_overlap
+----------------------------------------
+Fixed M=2000, K=300. Directional overlap O[i,j]=|Ci∩Cj|/|Ci|. High overlap_skew and low overlap_ceiling (little variable sharing). Expected: low pairwise overlap.
+
+N examples: 1000
+M=2000, K=300, sizes=1-200, strategy=dirichlet
+overlap_skew=5.0, overlap_ceiling=0.15, dirichlet_factor=1.8
+
+medium_overlap
+----------------------------------------
+Fixed M=2000, K=300. Directional overlap O[i,j]=|Ci∩Cj|/|Ci|. Balanced overlap_skew / overlap_ceiling. Expected: mid-range pairwise overlap.
+
+N examples: 1000
+M=2000, K=300, sizes=1-200, strategy=dirichlet
+overlap_skew=2.0, overlap_ceiling=0.5, dirichlet_factor=1.8
+
+high_overlap
+----------------------------------------
+Fixed M=2000, K=300. Directional overlap O[i,j]=|Ci∩Cj|/|Ci|. Low overlap_skew and high overlap_ceiling (heavy sharing). Expected: high pairwise overlap.
+
+N examples: 1000
+M=2000, K=300, sizes=1-200, strategy=dirichlet
+overlap_skew=0.5, overlap_ceiling=1.0, dirichlet_factor=4.5
+

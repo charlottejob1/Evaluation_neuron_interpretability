@@ -1,0 +1,29 @@
+# Vega model dependencies (cross-platform: Linux & macOS, CPU build).
+#
+# Install into a Python 3.7 environment (see README). The CUDA toolkit
+# (cudatoolkit=10.2) from the original spec is intentionally omitted: it is
+# NVIDIA/CUDA-only and unavailable on macOS, so we rely on the CPU PyTorch
+# build, which runs on both Linux and Mac.
+
+torch==1.5.1
+torchvision==0.6.1
+numpy==1.17.5
+scipy==1.4.1
+pandas
+scikit-learn
+networkx
+seaborn
+scanpy==1.5.1
+umap-learn==0.4.6
+vega
+jupyter
+ipykernel
+
+# --- Transitive pins required to make the old stack import on Python 3.7 ---
+# scanpy 1.5.1 imports legacy_api_wrap, which breaks with the newest get_version
+# (TypeError in _detect_vcs). Pin a compatible get_version.
+get_version==2.1
+# umap-learn 0.4.6 fails to JIT-compile under recent numba (i64->i32 lowering
+# assertion). Pin a numba version that umap 0.4.6 supports.
+numba==0.51.2
+llvmlite==0.34.0

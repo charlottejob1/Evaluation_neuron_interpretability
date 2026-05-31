@@ -1,0 +1,27 @@
+VEGA2 fully-connected neuron sweep
+Generated (UTC): 2026-05-31T23:15:11.603773+00:00
+
+Sweep root: /Users/charlottejob/Code/Evaluation_neuron_interpretability/vega_fcn_sweep
+FCN percents: 0,10,20,30,40,50,60,70,80,90,100
+
+Training hyperparameters
+----------------------------------------
+n_epochs: 1000
+learning_rate: 0.00062187
+batch_size: 256
+kld_weight: 0.000233864
+dropout: 0.0452273
+train_patience: 25
+test_patience: 25
+n_top_genes: 2000
+train_size: 0.9
+seed: 42
+
+Evaluation (test set only)
+----------------------------------------
+overlap_threshold: 0.5
+data_dir: pbmc_data
+gmt_path: vega/vega/data/reactomes.gmt
+
+Aggregate rows: 7414
+FC neuron counts: 0, 67, 135, 202, 270, 337, 404, 472, 539, 607, 674

@@ -1,0 +1,11 @@
+{
+  "beta": 0.5,
+  "n_genes": 1030,
+  "n_latent_nodes": 41,
+  "n_fully_connected_nodes": 20,
+  "mask_density": 0.5288183755623964,
+  "mse": 0.12888911366462708,
+  "pearson_overall": 0.9761838912963867,
+  "pearson_per_cell_mean": 0.960126519203186,
+  "n_epochs_trained": 80
+}
