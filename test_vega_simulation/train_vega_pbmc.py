@@ -283,8 +283,9 @@ def apply_fully_connected_neuron_fraction_to_mask(
 
 def describe_model_architecture(model: VEGA2) -> str:
     """Return a detailed multi-line architecture summary."""
-    active_dec = int(model.decoder.mask.sum().item())
-    dense_dec = model.decoder.mask.numel()
+    mask_np = model.decoder.mask.detach().cpu().numpy()
+    active_dec = int(mask_np.sum())
+    dense_dec = int(mask_np.size)
     n_params = sum(p.numel() for p in model.parameters())
     n_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     lines = [
@@ -484,9 +485,10 @@ def run_pbmc_training(
     ).to(device)
 
     arch_summary = describe_model_architecture(model)
-    print(arch_summary)
+    print(arch_summary, flush=True)
 
     # --- Train ---
+    print("Starting VEGA2 training (%d epochs, batch_size=%d)..." % (n_epochs, batch_size), flush=True)
     hist, mse_hist, kld_hist = model.train_model(
         train_loader,
         learning_rate=learning_rate,

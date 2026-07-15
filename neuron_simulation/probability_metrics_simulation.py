@@ -151,13 +151,18 @@ def compute_concept_overlap_matrix(
     return O
 
 
+def unrescale_probability(p: float) -> float:
+    """Inverse of 2*(p-0.5): map rescaled values back to raw P in [0.5, 1]."""
+    return float(p) / 2.0 + 0.5
+
+
 def compute_probability_self_more_affected(
     reduction_tensor: np.ndarray,
     overlap_matrix: np.ndarray = None,
     overlap_threshold: Optional[float] = None,
 ) -> np.ndarray:
     """
-    For each perturbation i and each neuron j != i, compute:
+    For each perturbation i and each observed concept j != i, compute:
       P_i,j = P_n( R[i,n,i] > R[i,n,j] )
 
     If overlap_threshold is set (and overlap_matrix is provided), only pairs where the
@@ -374,7 +379,11 @@ def probability_rows_from_reduction(
 ) -> List[Dict[str, object]]:
     """Compute probability rows from an existing reduction tensor (one beta, many thresholds)."""
     concept_keys = _concept_keys_in_order(concept_map)
-    overlap_matrix = compute_concept_overlap_matrix(concept_map, n_variables)
+    overlap_matrix = (
+        compute_concept_overlap_matrix(concept_map, n_variables)
+        if overlap_threshold is not None
+        else None
+    )
     prob_matrix = compute_probability_self_more_affected(
         reduction_tensor,
         overlap_matrix=overlap_matrix,

@@ -175,7 +175,7 @@ def overall_proba_one_pathway_perturbated(
             })
     df_results = pd.DataFrame(records)
     overall_proba = (df_results[f"{name_reduction_metric} Probability"].sum())/ (df_results[f"{name_reduction_metric} Probability"].notna().sum())
-    
+
     return  df_results, overall_proba
 
 

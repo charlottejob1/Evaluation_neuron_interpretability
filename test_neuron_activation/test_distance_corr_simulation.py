@@ -30,12 +30,24 @@ import pandas as pd
 import seaborn as sns
 
 from distance_corr_simulation import run_distance_corr_pipeline
+from data_generation import generate_structured_dataset
+from probability_metrics_simulation import compute_concept_overlap_matrix
 
 
 # Fixed dimensions for fair comparison (kept identical to the probability-metric study).
 FIXED_N_EXAMPLES = 1000
 FIXED_M = 2000
 FIXED_K = 300
+
+# Match test_metrics_simulation: headroom above 1.0 for saturated boxplots.
+CORR_YLIM_TOP = 1.2
+
+# Overlap-regime panel colors (02_overlap_regime_pairwise_distributions in metrics study).
+OVERLAP_REGIME_COLORS = {
+    "low_overlap": "steelblue",
+    "medium_overlap": "darkorange",
+    "high_overlap": "firebrick",
+}
 
 # Base overlap profile used for beta / M / K sweeps (standard settings).
 BASE_OVERLAP_PROFILE = {
@@ -184,7 +196,7 @@ DEFAULTS = {
     "size_max": 200,
     "dirichlet_total_assignments_factor": 1.5,
     "variable_mean_strategy": "mean",
-    "alpha_mode": "uniform",
+    "alpha_mode": "exponential",
     "alpha_exp_scale": 1.0,
     "seed": 12345,
     "output_dir": "plots_distance_corr_simulation",
@@ -238,11 +250,91 @@ def _require_plot_columns(df: pd.DataFrame, columns: List[str], study_name: str)
 
 
 def _corr_ylim(values: np.ndarray) -> tuple:
-    """Keep the top at 1.0 but leave headroom below for any negative correlations."""
+    """Keep the top at CORR_YLIM_TOP but leave headroom below for negative correlations."""
     if len(values) == 0:
-        return (-0.05, 1.0)
+        return (-0.05, CORR_YLIM_TOP)
     lo = float(np.nanmin(values))
-    return (min(-0.05, lo - 0.05), 1.0)
+    return (min(-0.05, lo - 0.05), CORR_YLIM_TOP)
+
+
+def _pairwise_overlap_values(concept_map: Dict[str, List[int]], n_variables: int) -> np.ndarray:
+    overlap_matrix = compute_concept_overlap_matrix(concept_map, n_variables)
+    K = overlap_matrix.shape[0]
+    mask = ~np.eye(K, dtype=bool)
+    return overlap_matrix[mask]
+
+
+def _generate_overlap_regime_dataset(
+    regime: Dict[str, object],
+    args: argparse.Namespace,
+) -> np.ndarray:
+    """Realized pairwise overlap values for one overlap regime (M, K fixed)."""
+    _, _, concept_map = generate_structured_dataset(
+        n_examples=args.n_examples,
+        n_variables=FIXED_M,
+        n_concepts=FIXED_K,
+        overlap_skew=float(regime["overlap_skew"]),
+        max_concept_size=args.max_concept_size,
+        size_strategy=args.size_strategy,
+        size_range=(args.size_min, args.size_max),
+        overlap_floor=float(regime["overlap_floor"]),
+        overlap_ceiling=float(regime["overlap_ceiling"]),
+        overlap_convergence_power=float(regime["overlap_convergence_power"]),
+        overlap_reference_concepts=FIXED_K,
+        dirichlet_total_assignments_factor=float(regime["dirichlet_total_assignments_factor"]),
+        variable_mean_strategy=args.variable_mean_strategy,
+        seed=args.seed,
+    )
+    return _pairwise_overlap_values(concept_map, FIXED_M)
+
+
+def plot_overlap_regime_distributions(
+    regime_configs: List[Dict[str, object]],
+    args: argparse.Namespace,
+    out_dir: str,
+) -> None:
+    """Three-panel histogram (low / medium / high), same colors as metrics study."""
+    order = ["low_overlap", "medium_overlap", "high_overlap"]
+    regime_by_name = {str(r["name"]): r for r in regime_configs}
+    panel_order = [n for n in order if n in regime_by_name] + [
+        n for n in regime_by_name if n not in order
+    ]
+
+    fig, axes = plt.subplots(
+        1,
+        len(panel_order),
+        figsize=(6.5 * len(panel_order), 6.5),
+        sharey=True,
+        sharex=True,
+        constrained_layout=True,
+    )
+    axes = np.atleast_1d(axes)
+
+    for ax, name in zip(axes, panel_order):
+        regime = regime_by_name[name]
+        off_diag = _generate_overlap_regime_dataset(regime, args)
+        sns.histplot(
+            x=off_diag,
+            bins=40,
+            stat="density",
+            kde=True,
+            ax=ax,
+            color=OVERLAP_REGIME_COLORS.get(name, "gray"),
+        )
+        ax.set_xlabel("Directional overlap |Ci ∩ Cj| / |Ci|")
+        ax.set_ylabel("Density" if ax is axes[0] else "")
+        ax.set_title(name.replace("_", " ").title(), fontsize=12, fontweight="bold")
+        ax.set_xlim(0.0, 1.0)
+
+    fig.suptitle(
+        "Realized pairwise overlap distributions per regime\n"
+        f"(fixed M={FIXED_M}, K={FIXED_K}; only overlap generation parameters differ)",
+        fontsize=13,
+    )
+    path = os.path.join(out_dir, "04a_overlap_regime_pairwise_distributions.png")
+    plt.savefig(path, dpi=150, bbox_inches="tight")
+    plt.close()
+    print(f"Saved: {path}")
 
 
 def study_beta_sweep(
@@ -490,6 +582,8 @@ def study_overlap_sweep(
             },
         )
 
+    plot_overlap_regime_distributions(regime_configs, args, out_dir)
+
     for regime in regime_configs:
         profile = {
             "name": str(regime["name"]),
@@ -536,6 +630,11 @@ def study_overlap_sweep(
     plt.xlabel(f"Overlap regime (M={FIXED_M}, K={FIXED_K} fixed)")
     plt.ylabel(METRIC_LABEL)
     plt.title("Impact of overlap regime on distance correlation at fixed beta values")
+    plt.suptitle(
+        f"See 04a_overlap_regime_pairwise_distributions.png (M={FIXED_M}, K={FIXED_K})",
+        fontsize=9,
+        y=1.02,
+    )
     plt.legend(title="beta", bbox_to_anchor=(1.02, 1), loc="upper left")
     plt.tight_layout()
     path = os.path.join(out_dir, "04_distance_corr_by_overlap.png")

@@ -1,5 +1,5 @@
 VEGA2 fully-connected neuron sweep
-Generated (UTC): 2026-05-31T23:15:11.603773+00:00
+Generated (UTC): 2026-06-10T20:23:26.516245+00:00
 
 Sweep root: /Users/charlottejob/Code/Evaluation_neuron_interpretability/vega_fcn_sweep
 FCN percents: 0,10,20,30,40,50,60,70,80,90,100

@@ -1,0 +1,16 @@
+Neuron simulation — combined metrics aggregate
+Generated (UTC): 2026-06-05T18:41:59.778770+00:00
+
+distance_corr_csv (beta): /Users/charlottejob/Code/Evaluation_neuron_interpretability/plots_dcorr_v3_exp/distance_corr_beta_sweep.csv
+probability_csv (beta): /Users/charlottejob/Code/Evaluation_neuron_interpretability/plots_trial_v7_exp/probabilities_beta_sweep.csv
+mig_csv (beta): /Users/charlottejob/Code/Evaluation_neuron_interpretability/plots_mig_v1_exp/mig_beta_sweep.csv
+mig_column: per_neuron_mig
+overlap_profile (beta sweep): base
+beta_values (beta sweep): 0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0
+
+Overlap sweep outputs (per regime: low, medium, high):
+  distance_corr: /Users/charlottejob/Code/Evaluation_neuron_interpretability/plots_dcorr_v3_exp/distance_corr_overlap_sweep.csv
+  probability: /Users/charlottejob/Code/Evaluation_neuron_interpretability/plots_trial_v7_exp/probabilities_overlap_sweep.csv
+  mig: /Users/charlottejob/Code/Evaluation_neuron_interpretability/plots_mig_v1_exp/mig_overlap_sweep.csv
+  overlap_regimes: low_overlap,medium_overlap,high_overlap
+  overlap_betas: 0.0,0.3,0.6,0.9

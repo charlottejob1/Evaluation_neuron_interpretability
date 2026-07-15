@@ -12,14 +12,6 @@ This repository contains two independent workflows, each with its own environmen
    conda environment (`venv_vega`) built from `requirements_vega.txt` (PyTorch 1.5.1,
    scanpy 1.5.1, ...).
 
-Keep the two environments separate: the simulation code targets a modern Python while
-Vega needs an older, pinned stack.
-
-> **Cross-platform note.** `requirements_vega.txt` is both **Linux- and macOS-friendly**:
-> the original spec's `cudatoolkit=10.2` (NVIDIA/CUDA, unavailable on macOS) is dropped
-> in favor of the **CPU PyTorch build**, which runs on both OSes. On Apple Silicon
-> (arm64) these old pinned versions have no native wheels — see the Apple Silicon note
-> below to build the env under `osx-64` (Rosetta).
 
 ---
 
@@ -61,10 +53,13 @@ python test_metrics_simulation.py --run-name prob_v1
 
 # Distance-correlation metric studies (beta / M / K / overlap sweeps)
 python test_distance_corr_simulation.py --run-name dcorr_v1
+
+# MIG metric studies (beta / M / K / overlap sweeps; same N/M/K defaults)
+python test_neuron_activation/test_mig_simulation.py --run-name mig_v1
+
 # Use exponential alpha weighting instead of uniform:
 python test_distance_corr_simulation.py --alpha-mode exponential --run-name dcorr_v1_exp
-# Faster reduced sweeps:
-python test_distance_corr_simulation.py --quick --run-name dcorr_quick
+
 ```
 
 Each run writes its plots and CSVs to a `plots_<run-name>/` folder along with a
@@ -101,14 +96,6 @@ a nested `.git` directory. Remove it so this repository can track the empty
 rm -rf vega/.git
 ```
 
-To pin a specific release instead of `main`, clone then check out a tag, for example:
-
-```bash
-cd vega
-git checkout v1.0.0   # use the tag documented in your experiment notes, if any
-cd ..
-```
-
 ### Create the environment
 
 Requires conda (Miniconda/Anaconda) for Python 3.7; pinned packages are installed with
@@ -142,6 +129,21 @@ pip install --upgrade pip
 pip install -r requirements_vega.txt
 ```
 
+Or use the helper script (macOS / Linux):
+
+```bash
+./create_vega_env.sh notlinux   # macOS / Apple Silicon (Rosetta, CPU-only)
+./create_vega_env.sh linux      # Linux (NVIDIA GPU optional)
+```
+
+If `conda activate venv_vega` fails but a folder `venv_vega/` exists at the repo root,
+activate by path instead:
+
+```bash
+conda activate "$(pwd)/venv_vega"
+# or: source venv_vega/bin/activate
+```
+
 ### Activate and use
 
 ```bash
@@ -163,3 +165,77 @@ To remove it:
 conda deactivate
 conda env remove -n venv_vega
 ```
+
+### VEGA fully-connected neuron sweep (`vega_fcn_sweep`)
+
+Train VEGA2 on PBMC 8K across 11 fully-connected-neuron fractions (`fcn_000` … `fcn_100`,
+step 10%), then compute interpretability metrics on the **test set only** (inference mode).
+
+Metrics (via `vega_simulation/vega_fcn_metrics.py`):
+
+- **Distance correlation** (`distance_corr`) — same logic as `vega_usage/distances_metrics.py`
+- **Reduction-score probability** (`reduction_score_probability`) — overlap threshold **0.5**
+  by default (exclude pairs with overlap ≥ threshold)
+
+```bash
+# Activate venv_vega first (see above)
+cd test_vega_simulation
+
+# Full sweep: train 11 models, evaluate metrics, aggregate plots
+python run_vega_fcn_sweep.py --train --eval --plot
+
+# Evaluate + plot only (checkpoints already in vega_fcn_sweep/)
+python run_vega_fcn_sweep.py --eval --plot
+
+# Subset of fractions (e.g. sparse, half, dense)
+python run_vega_fcn_sweep.py --eval --plot --percents 0,50,100
+
+# Skip training when metrics.json + checkpoint already exist
+python run_vega_fcn_sweep.py --train --eval --plot --skip-existing
+
+# Quick smoke test (3 fractions, 5 epochs, 20 pathways)
+python run_vega_fcn_sweep.py --train --eval --plot --quick
+
+# Custom overlap threshold for probability metric
+python run_vega_fcn_sweep.py --eval --plot --overlap-threshold 0.5
+```
+
+**Outputs**
+
+Per fraction (`vega_fcn_sweep/fcn_XXX/`): trained model, training plots, `metrics.json`,
+`interpretability_metrics.csv` (per-pathway `distance_corr` and `reduction_score_probability`).
+
+Aggregate (`vega_fcn_sweep/aggregate/`): `per_neuron_metrics.csv`,
+`01_distance_corr_by_fcn.png`, `02_reduction_score_probability_by_fcn.png`,
+combined metric plots, `run_parameters.txt`.
+
+**MIG metric** (gp.prerank enrichment + latent MI; requires `gseapy` in `venv_vega`):
+
+```bash
+# Shared pathway enrichment once, then MIG for all fcn_* folders
+python test_vega_simulation/run_vega_mig_sweep.py --force-recompute-enrichment
+
+# Resume MIG only (enrichment already cached under shared_mig_enrichment/)
+python test_vega_simulation/run_vega_mig_sweep.py --skip-existing
+
+# Subset or aggregate-only
+python test_vega_simulation/run_vega_mig_sweep.py --percents 0,50,100 --skip-existing
+python test_vega_simulation/run_vega_mig_sweep.py --plot
+
+# Single run folder
+python vega_simulation/vega_mig_metrics.py --run-dir vega_fcn_sweep/fcn_000
+```
+
+MIG aggregate: `vega_fcn_sweep/mig_aggregate/` (`mig_summaries.csv`, `01_mig_by_fcn.png`).
+After MIG is computed, re-run `python run_vega_fcn_sweep.py --plot` to refresh combined
+plots that overlay distance corr, probability, and MIG.
+
+**Sparse VEGA2 baseline** (single PBMC run, `fully_connected_neuron_fraction=0`):
+
+```bash
+python test_vega_simulation/test_vega_sparse_pbmc.py
+python test_vega_simulation/test_vega_sparse_pbmc.py --compare-distance-corr-only --output-dir vega_sparse_test
+```
+
+Outputs default to `vega_sparse_test/` (model, performance metrics, interpretability CSVs,
+distance-corr comparison vs original `vega_usage` code).

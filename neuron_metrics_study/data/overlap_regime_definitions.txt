@@ -1,0 +1,26 @@
+Overlap regime definitions (neuron_metrics_study)
+============================================================
+
+low_overlap
+----------------------------------------
+Minimize variable sharing: high overlap_skew, low overlap_ceiling (0.05).
+
+N=1000, M=2000, K=300, sizes=1-200 (dirichlet)
+overlap_skew=50.0, overlap_ceiling=0.05, dirichlet=1.5
+Realized mean overlap: 0.0098, median: 0.0000
+
+medium_overlap
+----------------------------------------
+Mid-range sharing: moderate skew/ceiling, dirichlet factor 3.0.
+
+N=1000, M=2000, K=300, sizes=1-200 (dirichlet)
+overlap_skew=1.0, overlap_ceiling=0.55, dirichlet=3.0
+Realized mean overlap: 0.0631, median: 0.0000
+
+high_overlap
+----------------------------------------
+Maximize sharing: low skew, ceiling 1.0, dirichlet factor 10.0.
+
+N=1000, M=2000, K=300, sizes=1-200 (dirichlet)
+overlap_skew=0.05, overlap_ceiling=1.0, dirichlet=10.0
+Realized mean overlap: 0.1689, median: 0.0152

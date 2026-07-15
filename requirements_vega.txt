@@ -18,6 +18,8 @@ umap-learn==0.4.6
 vega
 jupyter
 ipykernel
+# Pin: latest gseapy builds from source (Rust edition2024); 0.14.0 has a py37 macOS wheel.
+gseapy==0.14.0
 
 # --- Transitive pins required to make the old stack import on Python 3.7 ---
 # scanpy 1.5.1 imports legacy_api_wrap, which breaks with the newest get_version

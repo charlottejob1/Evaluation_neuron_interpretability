@@ -15,10 +15,10 @@ Special cases:
   - ``fully_connected_neuron_fraction = 0``   -> mask unchanged -> the original sparse VEGA2 decoder.
   - ``fully_connected_neuron_fraction = 1``   -> every pathway column is all 1s -> a fully-connected linear decoder.
 
-Everything needed to build the mask, build/train the model and evaluate reconstruction
-is self-contained here (CustomizedLinear, VEGA2, data generation, metrics), so the file
-runs in the ``venv_vega`` environment without importing the full ``scvi``-dependent
-VEGA package.
+Everything needed to build the mask, train the model and evaluate reconstruction
+is self-contained here (CustomizedLinear, VEGA2, metrics). Real PBMC loading and
+dataloaders live in ``test_vega_simulation/train_vega_pbmc.py``. This file runs in
+``venv_vega`` without importing the full ``scvi``-dependent VEGA package.
 """
 
 import math
@@ -318,9 +318,6 @@ class VEGA2(torch.nn.Module):
         self.n_genes = self.pathway_mask.shape[0]
         self.n_pathways = self.pathway_mask.shape[1]
         self.dev = kwargs.get("device", torch.device("cpu"))
-        # NOTE: `beta` is the VAE KL-divergence weight (original VEGA2 training parameter).
-        # Decoder neuron connectivity is controlled separately via
-        # ``fully_connected_neuron_fraction`` when building the mask.
         self.beta = kwargs.get("beta", 0.01)
         self.save_path = kwargs.get("save_path", "trained_vega2.pt")
         self.dropout = kwargs.get("dropout", 0.2)
@@ -456,53 +453,7 @@ class VEGA2(torch.nn.Module):
 
 
 # =====================================================================
-# 6. Synthetic expression data with pathway structure (learnable reconstruction)
-# =====================================================================
-
-def generate_expression_from_mask(
-    mask: np.ndarray,
-    n_cells: int,
-    noise_std: float = 0.1,
-    seed: Optional[int] = None,
-) -> np.ndarray:
-    """
-    Generate synthetic expression X with structure induced by the pathway mask, so a
-    masked decoder can learn to reconstruct it.
-
-      z ~ N(0, 1)              latent pathway activities, shape (n_cells, n_pathways)
-      W = U * mask             gene-by-pathway weights (sparse, positive), (n_genes, n_pathways)
-      X = z @ W^T + noise      expression, shape (n_cells, n_genes)
-    """
-    rng = np.random.RandomState(seed)
-    n_genes, n_pathways = mask.shape
-    W = rng.uniform(0.5, 1.5, size=(n_genes, n_pathways)) * mask
-    z = rng.standard_normal((n_cells, n_pathways))
-    X = z @ W.T
-    X = X + rng.normal(0.0, noise_std, size=X.shape)
-    return X.astype(np.float32)
-
-
-def build_dataloaders(
-    X: np.ndarray,
-    batch_size: int = 128,
-    train_frac: float = 0.85,
-    seed: Optional[int] = None,
-) -> Tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader, torch.Tensor, torch.Tensor]:
-    """Split X into train/validation tensors and wrap into DataLoaders."""
-    rng = np.random.RandomState(seed)
-    n = X.shape[0]
-    perm = rng.permutation(n)
-    n_train = int(train_frac * n)
-    train_idx, val_idx = perm[:n_train], perm[n_train:]
-    X_train = torch.tensor(X[train_idx], dtype=torch.float32)
-    X_val = torch.tensor(X[val_idx], dtype=torch.float32)
-    train_loader = torch.utils.data.DataLoader(X_train, batch_size=batch_size, shuffle=True, drop_last=True)
-    val_loader = torch.utils.data.DataLoader(X_val, batch_size=batch_size, shuffle=True, drop_last=True)
-    return train_loader, val_loader, X_train, X_val
-
-
-# =====================================================================
-# 7. Reconstruction evaluation: MSE and Pearson correlation
+# 6. Reconstruction evaluation: MSE and Pearson correlation
 # =====================================================================
 
 @torch.no_grad()

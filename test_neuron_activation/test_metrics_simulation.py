@@ -17,7 +17,7 @@ Studies:
 import argparse
 import os
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,10 +25,11 @@ import pandas as pd
 import seaborn as sns
 
 from data_generation import generate_structured_dataset
-from metrics_simulation import (
+from probability_metrics_simulation import (
     compute_concept_overlap_matrix,
     compute_reduction_tensor,
     probability_rows_from_reduction,
+    unrescale_probability,
     run_probability_pipeline,
 )
 
@@ -37,6 +38,9 @@ from metrics_simulation import (
 FIXED_N_EXAMPLES = 1000
 FIXED_M = 2000
 FIXED_K = 300
+
+PROBABILITY_YLIM = (0.45, 1.05)
+PROBABILITY_YLABEL = "P(self reduction > other)"
 
 DEFAULTS = {
     "n_examples": FIXED_N_EXAMPLES,
@@ -50,7 +54,7 @@ DEFAULTS = {
     "size_max": 200,
     "dirichlet_total_assignments_factor": 1.5,
     "variable_mean_strategy": "mean",
-    "alpha_mode": "uniform",
+    "alpha_mode": "exponential",
     "alpha_exp_scale": 1.0,
     "seed": 12345,
     # Folder for all PNG/CSV outputs (override via CLI --output-dir or --run-name).
@@ -62,6 +66,8 @@ DEFAULTS = {
     "K_values": "50,100,300,500, 700",
     # Used only by threshold study (pairs with overlap < threshold).
     "overlap_thresholds": "0.02,0.05,0.1,0.15,0.25,0.35,0.5,0.65,0.8",
+    # Single threshold for beta/M/K sweeps when set (None = include all pairs).
+    "overlap_threshold": None,
 }
 
 # Base overlap profile used for beta / M / K sweeps (standard settings).
@@ -164,6 +170,7 @@ class RunParameterLog:
             f"alpha_mode: {a.alpha_mode}",
             f"alpha_exp_scale: {a.alpha_exp_scale}",
             f"seed: {a.seed}",
+            f"overlap_threshold (beta/M/K sweeps): {a.overlap_threshold}",
             "",
             "Base overlap profile (beta / M / K sweeps)",
             "-" * 40,
@@ -287,6 +294,7 @@ def _pipeline_kwargs(args: argparse.Namespace) -> Dict[str, object]:
         "alpha_mode": args.alpha_mode,
         "alpha_exp_scale": args.alpha_exp_scale,
         "seed": args.seed,
+        "overlap_threshold": args.overlap_threshold,
     }
 
 
@@ -319,7 +327,7 @@ def _ensure_regime_capacity(regime: Dict[str, object]) -> None:
 def _generate_dataset_for_regime(
     regime: Dict[str, object],
     args: argparse.Namespace,
-) -> tuple[np.ndarray, Dict[str, List[int]], int, Dict[str, object]]:
+) -> Tuple[np.ndarray, Dict[str, List[int]], int, Dict[str, object]]:
     """Generate (X, concept_map) for one overlap regime (M, K fixed; overlap params vary)."""
     _ensure_regime_capacity(regime)
     profile = _regime_to_overlap_profile(regime)
@@ -536,6 +544,198 @@ def _collect_probs_for_regime(
     return rows
 
 
+def _plot_probabilities_beta(df: pd.DataFrame, out_dir: str) -> None:
+    if not _require_plot_columns(df, ["beta", "probability"], "beta sweep"):
+        return
+    betas_sorted = sorted(df["beta"].unique())
+    data_by_beta = [df.loc[df["beta"] == b, "probability"].values for b in betas_sorted]
+    plt.figure(figsize=(12, 6))
+    bp = plt.boxplot(
+        data_by_beta,
+        positions=range(len(betas_sorted)),
+        widths=0.6,
+        patch_artist=True,
+        showfliers=False,
+    )
+    for box in bp["boxes"]:
+        box.set(facecolor="steelblue", edgecolor="navy", alpha=0.7)
+    for element in ("whiskers", "caps", "medians"):
+        for item in bp[element]:
+            item.set(color="navy")
+    plt.xticks(range(len(betas_sorted)), [f"{b:.1f}" for b in betas_sorted])
+    plt.ylim(*PROBABILITY_YLIM)
+    plt.xlabel("beta")
+    plt.ylabel(PROBABILITY_YLABEL)
+    plt.title("Influence of beta on probability distribution")
+    plt.grid(True, axis="y", alpha=0.3)
+    plt.tight_layout()
+    path = os.path.join(out_dir, "01_probabilities_by_beta.png")
+    plt.savefig(path, dpi=150)
+    plt.close()
+    print(f"Saved: {path}")
+
+
+def _plot_probabilities_overlap(df: pd.DataFrame, out_dir: str) -> None:
+    if not _require_plot_columns(df, ["overlap_profile", "beta", "probability"], "overlap sweep"):
+        return
+    plt.figure(figsize=(12, 6))
+    sns.boxplot(
+        data=df,
+        x="overlap_profile",
+        y="probability",
+        hue="beta",
+        order=["low_overlap", "medium_overlap", "high_overlap"],
+        showfliers=False,
+    )
+    plt.ylim(*PROBABILITY_YLIM)
+    plt.xlabel(f"Overlap regime (M={FIXED_M}, K={FIXED_K} fixed)")
+    plt.ylabel(PROBABILITY_YLABEL)
+    plt.title("Impact of overlap regime on probabilities at fixed beta values")
+    plt.suptitle(
+        f"See 02_overlap_regime_pairwise_distributions.png (M={FIXED_M}, K={FIXED_K})",
+        fontsize=9,
+        y=1.02,
+    )
+    plt.legend(title="beta", bbox_to_anchor=(1.02, 1), loc="upper left")
+    plt.tight_layout()
+    path = os.path.join(out_dir, "02b_probabilities_by_overlap.png")
+    plt.savefig(path, dpi=150)
+    plt.close()
+    print(f"Saved: {path}")
+
+
+def _plot_probabilities_M(df: pd.DataFrame, out_dir: str) -> None:
+    if not _require_plot_columns(df, ["n_variables", "beta", "probability"], "M sweep"):
+        return
+    plt.figure(figsize=(12, 6))
+    sns.boxplot(
+        data=df,
+        x="n_variables",
+        y="probability",
+        hue="beta",
+        showfliers=False,
+    )
+    plt.ylim(*PROBABILITY_YLIM)
+    plt.xlabel("M (number of variables)")
+    plt.ylabel(PROBABILITY_YLABEL)
+    plt.title("Impact of M on probabilities at fixed beta values")
+    plt.legend(title="beta", bbox_to_anchor=(1.02, 1), loc="upper left")
+    plt.tight_layout()
+    path = os.path.join(out_dir, "03_probabilities_by_M.png")
+    plt.savefig(path, dpi=150)
+    plt.close()
+    print(f"Saved: {path}")
+
+
+def _plot_probabilities_K(df: pd.DataFrame, out_dir: str) -> None:
+    if not _require_plot_columns(df, ["n_concepts", "beta", "probability"], "K sweep"):
+        return
+    plt.figure(figsize=(12, 6))
+    sns.boxplot(
+        data=df,
+        x="n_concepts",
+        y="probability",
+        hue="beta",
+        showfliers=False,
+    )
+    plt.ylim(*PROBABILITY_YLIM)
+    plt.xlabel("K (number of concepts); concept size scales as ~M/K to fix overlap density")
+    plt.ylabel(PROBABILITY_YLABEL)
+    plt.title("Impact of K on probabilities at fixed beta values")
+    plt.legend(title="beta", bbox_to_anchor=(1.02, 1), loc="upper left")
+    plt.tight_layout()
+    path = os.path.join(out_dir, "04_probabilities_by_K.png")
+    plt.savefig(path, dpi=150)
+    plt.close()
+    print(f"Saved: {path}")
+
+
+def _plot_probabilities_threshold(df: pd.DataFrame, out_dir: str) -> None:
+    if not _require_plot_columns(
+        df, ["overlap_threshold", "beta", "probability"], "threshold study"
+    ):
+        return
+    mean_df = (
+        df.groupby(["beta", "overlap_threshold"], as_index=False)["probability"]
+        .mean()
+        .rename(columns={"probability": "mean_probability"})
+    )
+    plt.figure(figsize=(12, 6))
+    sns.lineplot(
+        data=mean_df,
+        x="overlap_threshold",
+        y="mean_probability",
+        hue="beta",
+        marker="o",
+    )
+    plt.ylim(*PROBABILITY_YLIM)
+    plt.xlabel("Overlap threshold (include pairs with overlap(observed, perturbated) < threshold)")
+    plt.ylabel("Mean " + PROBABILITY_YLABEL)
+    plt.title("Impact of overlap threshold on specificity (wide overlap spectrum)")
+    plt.tight_layout()
+    path_mean = os.path.join(out_dir, "05_mean_probability_vs_overlap_threshold.png")
+    plt.savefig(path_mean, dpi=150)
+    plt.close()
+    print(f"Saved: {path_mean}")
+
+    plt.figure(figsize=(14, 6))
+    sns.boxplot(
+        data=df,
+        x="overlap_threshold",
+        y="probability",
+        hue="beta",
+        showfliers=False,
+    )
+    plt.ylim(*PROBABILITY_YLIM)
+    plt.xlabel("Overlap threshold")
+    plt.ylabel(PROBABILITY_YLABEL)
+    plt.title("Probability distributions vs overlap threshold and beta")
+    plt.legend(title="beta", bbox_to_anchor=(1.02, 1), loc="upper left")
+    plt.tight_layout()
+    path_box = os.path.join(out_dir, "06_probability_distributions_threshold_beta.png")
+    plt.savefig(path_box, dpi=150)
+    plt.close()
+    print(f"Saved: {path_box}")
+
+    pair_counts = (
+        df.groupby("overlap_threshold")["perturbated_concept"]
+        .count()
+        .reset_index(name="n_pairs")
+    )
+    plt.figure(figsize=(10, 5))
+    sns.barplot(data=pair_counts, x="overlap_threshold", y="n_pairs", color="steelblue")
+    plt.xlabel("Overlap threshold")
+    plt.ylabel("Number of (perturbed, observed) pairs included")
+    plt.title("Pair count retained (overlap < threshold, wide overlap spectrum)")
+    plt.tight_layout()
+    path_count = os.path.join(out_dir, "07_pair_count_vs_overlap_threshold.png")
+    plt.savefig(path_count, dpi=150)
+    plt.close()
+    print(f"Saved: {path_count}")
+
+
+def replot_probability_studies_from_csv(out_dir: str) -> None:
+    """Regenerate probability PNGs from existing sweep CSVs in *out_dir*."""
+    os.makedirs(out_dir, exist_ok=True)
+    sns.set_theme(style="whitegrid")
+    mapping = [
+        ("probabilities_beta_sweep.csv", _plot_probabilities_beta),
+        ("probabilities_overlap_sweep.csv", _plot_probabilities_overlap),
+        ("probabilities_M_sweep.csv", _plot_probabilities_M),
+        ("probabilities_K_sweep.csv", _plot_probabilities_K),
+        ("probabilities_overlap_threshold_sweep.csv", _plot_probabilities_threshold),
+    ]
+    for csv_name, plot_fn in mapping:
+        csv_path = os.path.join(out_dir, csv_name)
+        if not os.path.isfile(csv_path):
+            print(f"[replot] skip missing {csv_path}")
+            continue
+        df = pd.read_csv(csv_path)
+        if "probability" in df.columns:
+            df["probability"] = df["probability"].astype(float)
+        plot_fn(df, out_dir)
+
+
 def study_beta_sweep(
     args: argparse.Namespace,
     out_dir: str,
@@ -554,6 +754,7 @@ def study_beta_sweep(
                 "K (fixed)": args.n_concepts,
                 "beta_values": args.beta_sweep,
                 "overlap_profile": BASE_OVERLAP_PROFILE,
+                "overlap_threshold": args.overlap_threshold,
                 "output_csv": "probabilities_beta_sweep.csv",
             },
         )
@@ -571,37 +772,7 @@ def study_beta_sweep(
 
     df = _rows_to_dataframe(rows)
     df.to_csv(os.path.join(out_dir, "probabilities_beta_sweep.csv"), index=False)
-
-    if not _require_plot_columns(df, ["beta", "probability"], "beta sweep"):
-        return df
-
-    betas_sorted = sorted(df["beta"].unique())
-    data_by_beta = [df.loc[df["beta"] == b, "probability"].values for b in betas_sorted]
-
-    plt.figure(figsize=(12, 6))
-    bp = plt.boxplot(
-        data_by_beta,
-        positions=range(len(betas_sorted)),
-        widths=0.6,
-        patch_artist=True,
-        showfliers=False,
-    )
-    for box in bp["boxes"]:
-        box.set(facecolor="steelblue", edgecolor="navy", alpha=0.7)
-    for element in ("whiskers", "caps", "medians"):
-        for item in bp[element]:
-            item.set(color="navy")
-    plt.xticks(range(len(betas_sorted)), [f"{b:.1f}" for b in betas_sorted])
-    plt.ylim(0.0, 1.0)
-    plt.xlabel("beta")
-    plt.ylabel("P(self reduction > other reduction)")
-    plt.title("Influence of beta on probability distribution")
-    plt.grid(True, axis="y", alpha=0.3)
-    plt.tight_layout()
-    path = os.path.join(out_dir, "01_probabilities_by_beta.png")
-    plt.savefig(path, dpi=150)
-    plt.close()
-    print(f"Saved: {path}")
+    _plot_probabilities_beta(df, out_dir)
     return df
 
 
@@ -654,34 +825,7 @@ def study_overlap_sweep(
 
     df = _rows_to_dataframe(rows)
     df.to_csv(os.path.join(out_dir, "probabilities_overlap_sweep.csv"), index=False)
-
-    if not _require_plot_columns(df, ["overlap_profile", "beta", "probability"], "overlap sweep"):
-        return df
-
-    plt.figure(figsize=(12, 6))
-    sns.boxplot(
-        data=df,
-        x="overlap_profile",
-        y="probability",
-        hue="beta",
-        order=["low_overlap", "medium_overlap", "high_overlap"],
-        showfliers=False,
-    )
-    plt.ylim(0.0, 1.0)
-    plt.xlabel(f"Overlap regime (M={FIXED_M}, K={FIXED_K} fixed)")
-    plt.ylabel("P(self reduction > other reduction)")
-    plt.title("Impact of overlap regime on probabilities at fixed beta values")
-    plt.suptitle(
-        f"See 02_overlap_regime_pairwise_distributions.png (M={FIXED_M}, K={FIXED_K})",
-        fontsize=9,
-        y=1.02,
-    )
-    plt.legend(title="beta", bbox_to_anchor=(1.02, 1), loc="upper left")
-    plt.tight_layout()
-    path = os.path.join(out_dir, "02b_probabilities_by_overlap.png")
-    plt.savefig(path, dpi=150)
-    plt.close()
-    print(f"Saved: {path}")
+    _plot_probabilities_overlap(df, out_dir)
     return df
 
 
@@ -724,28 +868,7 @@ def study_M_sweep(
 
     df = _rows_to_dataframe(rows)
     df.to_csv(os.path.join(out_dir, "probabilities_M_sweep.csv"), index=False)
-
-    if not _require_plot_columns(df, ["n_variables", "beta", "probability"], "M sweep"):
-        return df
-
-    plt.figure(figsize=(12, 6))
-    sns.boxplot(
-        data=df,
-        x="n_variables",
-        y="probability",
-        hue="beta",
-        showfliers=False,
-    )
-    plt.ylim(0.0, 1.0)
-    plt.xlabel("M (number of variables)")
-    plt.ylabel("P(self reduction > other reduction)")
-    plt.title("Impact of M on probabilities at fixed beta values")
-    plt.legend(title="beta", bbox_to_anchor=(1.02, 1), loc="upper left")
-    plt.tight_layout()
-    path = os.path.join(out_dir, "03_probabilities_by_M.png")
-    plt.savefig(path, dpi=150)
-    plt.close()
-    print(f"Saved: {path}")
+    _plot_probabilities_M(df, out_dir)
     return df
 
 
@@ -837,77 +960,11 @@ def study_overlap_threshold_vs_beta(
 
     df = _rows_to_dataframe(rows)
     df.to_csv(os.path.join(out_dir, "probabilities_overlap_threshold_sweep.csv"), index=False)
-
-    if not _require_plot_columns(
-        df, ["overlap_threshold", "beta", "probability"], "threshold study"
-    ):
-        return df
-
-    # Plot 1: mean probability vs overlap threshold, one curve per beta.
-    mean_df = (
-        df.groupby(["beta", "overlap_threshold"], as_index=False)["probability"]
-        .mean()
-        .rename(columns={"probability": "mean_probability"})
-    )
-    plt.figure(figsize=(12, 6))
-    sns.lineplot(
-        data=mean_df,
-        x="overlap_threshold",
-        y="mean_probability",
-        hue="beta",
-        marker="o",
-    )
-    plt.ylim(0.0, 1.0)
-    plt.xlabel("Overlap threshold (include pairs with overlap(observed, perturbated) < threshold)")
-    plt.ylabel("Mean P(R_i,i > R_i,j)")
-    plt.title("Impact of overlap threshold on specificity (wide overlap spectrum)")
-    plt.tight_layout()
-    path_mean = os.path.join(out_dir, "05_mean_probability_vs_overlap_threshold.png")
-    plt.savefig(path_mean, dpi=150)
-    plt.close()
-    print(f"Saved: {path_mean}")
-
-    # Plot 2: full probability distributions by threshold and beta.
-    plt.figure(figsize=(14, 6))
-    sns.boxplot(
-        data=df,
-        x="overlap_threshold",
-        y="probability",
-        hue="beta",
-        showfliers=False,
-    )
-    plt.ylim(0.0, 1.0)
-    plt.xlabel("Overlap threshold")
-    plt.ylabel("P(R_i,i > R_i,j)")
-    plt.title("Probability distributions vs overlap threshold and beta")
-    plt.legend(title="beta", bbox_to_anchor=(1.02, 1), loc="upper left")
-    plt.tight_layout()
-    path_box = os.path.join(out_dir, "06_probability_distributions_threshold_beta.png")
-    plt.savefig(path_box, dpi=150)
-    plt.close()
-    print(f"Saved: {path_box}")
-
-    # Plot 3: number of concept pairs retained per threshold (same for all beta).
-    pair_counts = (
-        df.groupby("overlap_threshold")["perturbated_concept"]
-        .count()
-        .reset_index(name="n_pairs")
-    )
-    plt.figure(figsize=(10, 5))
-    sns.barplot(data=pair_counts, x="overlap_threshold", y="n_pairs", color="steelblue")
-    plt.xlabel("Overlap threshold")
-    plt.ylabel("Number of (perturbed, observed) pairs included")
-    plt.title("Pair count retained (overlap < threshold, wide overlap spectrum)")
-    plt.tight_layout()
-    path_count = os.path.join(out_dir, "07_pair_count_vs_overlap_threshold.png")
-    plt.savefig(path_count, dpi=150)
-    plt.close()
-    print(f"Saved: {path_count}")
-
+    _plot_probabilities_threshold(df, out_dir)
     return df
 
 
-def _concept_sizes_for_k(K: int, args: argparse.Namespace) -> tuple[int, int]:
+def _concept_sizes_for_k(K: int, args: argparse.Namespace) -> Tuple[int, int]:
     """
     Scale concept size so packing density rho = K * mean_size / M stays constant
     as K varies. This keeps coverage (rho > 1) and the overlap distribution
@@ -975,28 +1032,7 @@ def study_K_sweep(
 
     df = _rows_to_dataframe(rows)
     df.to_csv(os.path.join(out_dir, "probabilities_K_sweep.csv"), index=False)
-
-    if not _require_plot_columns(df, ["n_concepts", "beta", "probability"], "K sweep"):
-        return df
-
-    plt.figure(figsize=(12, 6))
-    sns.boxplot(
-        data=df,
-        x="n_concepts",
-        y="probability",
-        hue="beta",
-        showfliers=False,
-    )
-    plt.ylim(0.0, 1.0)
-    plt.xlabel("K (number of concepts); concept size scales as ~M/K to fix overlap density")
-    plt.ylabel("P(self reduction > other reduction)")
-    plt.title("Impact of K on probabilities at fixed beta values")
-    plt.legend(title="beta", bbox_to_anchor=(1.02, 1), loc="upper left")
-    plt.tight_layout()
-    path = os.path.join(out_dir, "04_probabilities_by_K.png")
-    plt.savefig(path, dpi=150)
-    plt.close()
-    print(f"Saved: {path}")
+    _plot_probabilities_K(df, out_dir)
     return df
 
 
@@ -1082,6 +1118,15 @@ def parse_args() -> argparse.Namespace:
         help="Upper bounds: include pairs with overlap(observed, perturbated) < threshold.",
     )
     parser.add_argument(
+        "--overlap-threshold",
+        type=float,
+        default=DEFAULTS["overlap_threshold"],
+        help=(
+            "Pair filter for beta/M/K probability sweeps: keep pairs with "
+            "O[observed, perturbated] < threshold. Default None (all pairs)."
+        ),
+    )
+    parser.add_argument(
         "--quick",
         action="store_true",
         help="Fewer beta/M/K/threshold sweep values (N=1000, M=2000, K=300 unchanged).",
@@ -1092,13 +1137,44 @@ def parse_args() -> argparse.Namespace:
         default="beta,overlap,M,K,threshold",
         help="Comma-separated: beta,overlap,M,K,threshold",
     )
+    parser.add_argument(
+        "--replot-only",
+        action="store_true",
+        help="Regenerate probability PNGs from existing sweep CSVs (no simulation).",
+    )
+    parser.add_argument(
+        "--unrescale-csvs",
+        action="store_true",
+        help="Revert 2*(p-0.5) on probability columns in probabilities*.csv, then exit.",
+    )
     return parser.parse_args()
+
+
+def _unrescale_probability_csvs_in_dir(out_dir: str) -> None:
+    for name in os.listdir(out_dir):
+        if not name.startswith("probabilities") or not name.endswith(".csv"):
+            continue
+        path = os.path.join(out_dir, name)
+        df = pd.read_csv(path)
+        if "probability" not in df.columns:
+            continue
+        df["probability"] = df["probability"].astype(float).map(unrescale_probability)
+        df.to_csv(path, index=False)
+        print(f"Unrescaled probability column: {path}")
 
 
 def main() -> None:
     args = parse_args()
     args.output_dir = os.path.abspath(resolve_output_dir(args.output_dir, args.run_name))
     apply_fixed_simulation_dims(args)
+    if args.unrescale_csvs:
+        _unrescale_probability_csvs_in_dir(args.output_dir)
+        print("Done (unrescale-csvs).")
+        return
+    if args.replot_only:
+        replot_probability_studies_from_csv(args.output_dir)
+        print("Done (replot-only).")
+        return
     if args.quick:
         args.M_values = "500,1000,2000"
         args.K_values = "100,200,300"

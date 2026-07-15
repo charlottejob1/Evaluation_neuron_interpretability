@@ -1,0 +1,27 @@
+{
+  "name": "low_overlap",
+  "regime_params": {
+    "overlap_skew": 50.0,
+    "overlap_floor": 0.0,
+    "overlap_ceiling": 0.05,
+    "overlap_convergence_power": 0.5,
+    "dirichlet_total_assignments_factor": 1.5,
+    "n_variables": 2000,
+    "n_concepts": 300,
+    "size_strategy": "dirichlet",
+    "size_min": 1,
+    "size_max": 200,
+    "max_concept_size": 200,
+    "overlap_reference_concepts": 300
+  },
+  "overlap_stats": {
+    "mean_overlap": 0.009779499536937868,
+    "median_overlap": 0.0,
+    "min_overlap": 0.0,
+    "max_overlap": 1.0
+  },
+  "n_examples": 1000,
+  "n_variables": 2000,
+  "n_concepts": 300,
+  "seed": 12345
+}
