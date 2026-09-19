@@ -4,14 +4,10 @@ This repository contains two independent workflows, each with its own environmen
 
 1. **Data & neuron-activation simulation** (`data_generation.py`,
    `neuron_activation_simulation.py`, `probability_metrics_simulation.py`,
-   `distance_corr_simulation.py`, and their `test_*` runners). Runs on a lightweight
-   Python virtual environment (`.venv`) built from `requirements.txt`.
+   `distance_corr_simulation.py`, and their `test_*` runners). 
 2. **The Vega model** (`vega/`). The upstream [VEGA repository](https://github.com/LucasESBS/vega)
    is **not** bundled in this repo (`vega/` holds an empty `PLACEHOLDER` file on GitHub).
-   Clone it locally before training or running sweeps. Vega runs in a dedicated Python 3.7
-   conda environment (`venv_vega`) built from `requirements_vega.txt` (PyTorch 1.5.1,
-   scanpy 1.5.1, ...).
-
+   Clone it locally before training or running sweeps. 
 
 ---
 
@@ -85,17 +81,6 @@ rm vega/PLACEHOLDER
 git clone https://github.com/LucasESBS/vega.git vega
 ```
 
-If `vega/` already exists and is not empty (e.g. you cloned VEGA there before), skip
-the steps above.
-
-If you previously cloned VEGA with `git clone` inside `vega/`, that folder contains
-a nested `.git` directory. Remove it so this repository can track the empty
-`PLACEHOLDER` marker (your local VEGA files stay on disk; they remain git-ignored):
-
-```bash
-rm -rf vega/.git
-```
-
 ### Create the environment
 
 Requires conda (Miniconda/Anaconda) for Python 3.7; pinned packages are installed with
@@ -109,22 +94,10 @@ pip install --upgrade pip
 pip install -r requirements_vega.txt
 ```
 
-
-### Activate and use
-
-```bash
-conda activate venv_vega
-
-To update the environment after editing `requirements_vega.txt` (with it activated):
-
-```bash
-pip install -r requirements_vega.txt
-```
-
 ### VEGA fully-connected neuron sweep (`vega_fcn_sweep`)
 
 Train VEGA2 on PBMC 8K across 11 fully-connected-neuron fractions (`fcn_000` … `fcn_100`,
-step 10%), then compute interpretability metrics on the **test set only** (inference mode).
+step 10%), then compute interpretability metrics on the **test set only**.
 
 Metrics (via `vega_simulation/vega_fcn_metrics.py`):
 
@@ -180,17 +153,3 @@ python test_vega_simulation/run_vega_mig_sweep.py --plot
 # Single run folder
 python vega_simulation/vega_mig_metrics.py --run-dir vega_fcn_sweep/fcn_000
 ```
-
-MIG aggregate: `vega_fcn_sweep/mig_aggregate/` (`mig_summaries.csv`, `01_mig_by_fcn.png`).
-After MIG is computed, re-run `python run_vega_fcn_sweep.py --plot` to refresh combined
-plots that overlay distance corr, probability, and MIG.
-
-**Sparse VEGA baseline** (single PBMC run, `fully_connected_neuron_fraction=0`):
-
-```bash
-python test_vega_simulation/test_vega_sparse_pbmc.py
-python test_vega_simulation/test_vega_sparse_pbmc.py --compare-distance-corr-only --output-dir vega_sparse_test
-```
-
-Outputs default to `vega_sparse_test/` (model, performance metrics, interpretability CSVs,
-distance-corr comparison vs original `vega_usage` code).
