@@ -99,7 +99,7 @@ rm -rf vega/.git
 ### Create the environment
 
 Requires conda (Miniconda/Anaconda) for Python 3.7; pinned packages are installed with
-pip. This works the same on **Linux and macOS** (CPU build).
+pip.
 
 ```bash
 # From the repository root
@@ -109,61 +109,16 @@ pip install --upgrade pip
 pip install -r requirements_vega.txt
 ```
 
-> **Apple Silicon (M1/M2/M3) only.** These old versions have no arm64 wheels, so create
-> the env under the Intel (`osx-64`) subdir via Rosetta:
->
-> ```bash
-> CONDA_SUBDIR=osx-64 conda create -n venv_vega python=3.7 -y
-> conda activate venv_vega
-> conda config --env --set subdir osx-64
-> pip install --upgrade pip
-> pip install -r requirements_vega.txt
-> ```
-
-If you prefer pure `venv` (no conda) you still need a Python 3.7 interpreter available:
-
-```bash
-python3.7 -m venv venv_vega
-source venv_vega/bin/activate
-pip install --upgrade pip
-pip install -r requirements_vega.txt
-```
-
-Or use the helper script (macOS / Linux):
-
-```bash
-./create_vega_env.sh notlinux   # macOS / Apple Silicon (Rosetta, CPU-only)
-./create_vega_env.sh linux      # Linux (NVIDIA GPU optional)
-```
-
-If `conda activate venv_vega` fails but a folder `venv_vega/` exists at the repo root,
-activate by path instead:
-
-```bash
-conda activate "$(pwd)/venv_vega"
-# or: source venv_vega/bin/activate
-```
 
 ### Activate and use
 
 ```bash
 conda activate venv_vega
 
-# Optional: register the environment as a Jupyter kernel
-python -m ipykernel install --user --name venv_vega --display-name "Python (venv_vega)"
-```
-
 To update the environment after editing `requirements_vega.txt` (with it activated):
 
 ```bash
 pip install -r requirements_vega.txt
-```
-
-To remove it:
-
-```bash
-conda deactivate
-conda env remove -n venv_vega
 ```
 
 ### VEGA fully-connected neuron sweep (`vega_fcn_sweep`)
@@ -230,7 +185,7 @@ MIG aggregate: `vega_fcn_sweep/mig_aggregate/` (`mig_summaries.csv`, `01_mig_by_
 After MIG is computed, re-run `python run_vega_fcn_sweep.py --plot` to refresh combined
 plots that overlay distance corr, probability, and MIG.
 
-**Sparse VEGA2 baseline** (single PBMC run, `fully_connected_neuron_fraction=0`):
+**Sparse VEGA baseline** (single PBMC run, `fully_connected_neuron_fraction=0`):
 
 ```bash
 python test_vega_simulation/test_vega_sparse_pbmc.py
