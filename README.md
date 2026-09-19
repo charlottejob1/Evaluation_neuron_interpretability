@@ -1,6 +1,6 @@
 # Evaluation of Meta-Feature Layer Interpretability
 
-The goal of this framework is to evaluate the interpretability of a meta-feature hidden layer. The evaluation process is applied both on simulated neurons using synthetic data and a use case: a biologically constrained variationnal autoencoder (VAE) using single-cell RNA-seq data.
+The goal of this framework is to evaluate the interpretability of a meta-feature hidden layer. The evaluation process is applied both on simulated neurons using synthetic data and on a use case: a biologically constrained variationnal autoencoder (VAE) using single-cell RNA-seq data.
 
 This repository contains two independent workflows, each with its own environment:
 
