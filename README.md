@@ -112,17 +112,8 @@ cd test_vega_simulation
 # Full sweep: train 11 models, evaluate metrics, aggregate plots
 python run_vega_fcn_sweep.py --train --eval --plot
 
-# Evaluate + plot only (checkpoints already in vega_fcn_sweep/)
-python run_vega_fcn_sweep.py --eval --plot
-
 # Subset of fractions (e.g. sparse, half, dense)
 python run_vega_fcn_sweep.py --eval --plot --percents 0,50,100
-
-# Skip training when metrics.json + checkpoint already exist
-python run_vega_fcn_sweep.py --train --eval --plot --skip-existing
-
-# Quick smoke test (3 fractions, 5 epochs, 20 pathways)
-python run_vega_fcn_sweep.py --train --eval --plot --quick
 
 # Custom overlap threshold for probability metric
 python run_vega_fcn_sweep.py --eval --plot --overlap-threshold 0.5
