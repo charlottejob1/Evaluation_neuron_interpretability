@@ -103,8 +103,8 @@ step 10%), then compute interpretability metrics on the **test set only**.
 
 Metrics (via `vega_simulation/vega_fcn_metrics.py`):
 
-- **Distance correlation** (`distance_corr`) — same logic as `vega_usage/distances_metrics.py`
-- **Reduction-score probability** (`reduction_score_probability`) — overlap threshold **0.5**
+- **DC metric** (`distance_corr`) — same logic as `vega_usage/distances_metrics.py`
+- **KOS metric** (`reduction_score_probability`) — overlap threshold **0.5**
   by default (exclude pairs with overlap ≥ threshold)
 
 ```bash
